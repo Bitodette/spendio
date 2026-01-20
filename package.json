@@ -7,13 +7,18 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run build:shared && npm run dev -w @spendio/web",
-    "dev:web": "npm run build:shared && npm run dev -w @spendio/web",
-    "build": "npm run build:shared && npm run build -w @spendio/web",
+    "dev": "npm run build -w @spendio/shared && npm run dev -w @spendio/web",
+    "dev:web": "npm run build -w @spendio/shared && npm run dev -w @spendio/web",
+    "dev:api": "npm run build -w @spendio/shared && npm run dev -w @spendio/api",
+    "build": "npm run build -w @spendio/shared && npm run build -w @spendio/api && npm run build -w @spendio/web",
     "build:shared": "npm run build -w @spendio/shared",
     "lint": "npm run lint -w @spendio/web",
-    "typecheck": "npm run build:shared && npm run typecheck --workspaces --if-present",
-    "start:web": "npm run start -w @spendio/web"
+    "typecheck": "npm run build -w @spendio/shared && npm run typecheck --workspaces --if-present",
+    "start:web": "npm run start -w @spendio/web",
+    "start:api": "npm run start -w @spendio/api",
+    "db:generate": "npm run db:generate -w @spendio/api",
+    "db:migrate": "npm run db:migrate -w @spendio/api",
+    "db:check": "npm run db:check -w @spendio/api"
   },
   "engines": {
     "node": ">=20"
