@@ -1,5 +1,7 @@
 import express from 'express'
 import cors from 'cors'
+import { toNodeHandler } from 'better-auth/node'
+import { auth } from './auth/auth.js'
 import { errorHandler } from './middleware/error-handler.js'
 
 export function createApp() {
@@ -15,6 +17,9 @@ export function createApp() {
     .filter(Boolean)
 
   app.use(cors({ origin: webOrigins, credentials: true }))
+
+  // Better Auth needs the raw body, so mount it before express.json().
+  app.all('/api/auth/*splat', toNodeHandler(auth))
 
   app.use(express.json({ limit: '1mb' }))
 
