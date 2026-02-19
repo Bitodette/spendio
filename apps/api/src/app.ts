@@ -2,6 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import { toNodeHandler } from 'better-auth/node'
 import { auth } from './auth/auth.js'
+import { meRouter } from './modules/me/routes.js'
+import { preferencesRouter } from './modules/preferences/routes.js'
 import { errorHandler } from './middleware/error-handler.js'
 
 export function createApp() {
@@ -26,6 +28,9 @@ export function createApp() {
   app.get('/health', (_req, res) => {
     res.json({ ok: true })
   })
+
+  app.use('/api/v1/me', meRouter)
+  app.use('/api/v1/preferences', preferencesRouter)
 
   app.use((_req, res) => {
     res.status(404).json({
