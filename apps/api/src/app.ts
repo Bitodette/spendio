@@ -5,6 +5,8 @@ import { auth } from './auth/auth.js'
 import { meRouter } from './modules/me/routes.js'
 import { accountsRouter } from './modules/accounts/routes.js'
 import { categoriesRouter } from './modules/categories/routes.js'
+import { transactionsRouter } from './modules/transactions/routes.js'
+import { transfersRouter } from './modules/transfers/routes.js'
 import { preferencesRouter } from './modules/preferences/routes.js'
 import { errorHandler } from './middleware/error-handler.js'
 
@@ -34,6 +36,8 @@ export function createApp() {
   app.use('/api/v1/me', meRouter)
   app.use('/api/v1/accounts', accountsRouter)
   app.use('/api/v1/categories', categoriesRouter)
+  app.use('/api/v1/transactions', transactionsRouter)
+  app.use('/api/v1/transfers', transfersRouter)
   app.use('/api/v1/preferences', preferencesRouter)
 
   app.use((_req, res) => {

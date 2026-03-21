@@ -18,7 +18,8 @@
     "start:api": "npm run start -w @spendio/api",
     "db:generate": "npm run db:generate -w @spendio/api",
     "db:migrate": "npm run db:migrate -w @spendio/api",
-    "db:check": "npm run db:check -w @spendio/api"
+    "db:check": "npm run db:check -w @spendio/api",
+    "test:unit": "npm run build -w @spendio/shared && npm run test:unit -w @spendio/api"
   },
   "engines": {
     "node": ">=20"
