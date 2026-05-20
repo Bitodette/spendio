@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, DM_Sans, Quicksand } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/lib/auth";
+import { QueryAuthSync, QueryProvider } from "@/lib/query-provider";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -30,7 +32,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="id" className={`${inter.variable} ${dmSans.variable} ${quicksand.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <QueryProvider>
+          <AuthProvider>
+            <QueryAuthSync />
+            {children}
+          </AuthProvider>
+        </QueryProvider>
+      </body>
     </html>
   );
 }
