@@ -1,6 +1,9 @@
 'use client'
 
+import Link from 'next/link'
+import { Plus } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { Button } from '@/components/ui/button'
 import { ChartTooltip } from '@/components/dashboard/ChartTooltip'
 import { flattenChildren, type CategorySlice } from '@/lib/analytics/categories'
 import { cn, formatCurrency } from '@/lib/utils'
@@ -18,6 +21,11 @@ export function ExpenseByCategoryCard({ slices }: { slices: CategorySlice[] }) {
       {slices.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-center">
           <p className="text-sm text-muted-foreground">No expense data yet</p>
+          <Link href="/transactions">
+            <Button variant="outline" size="sm" className="mt-3 gap-1.5">
+              <Plus className="h-3.5 w-3.5" /> Add Transaction
+            </Button>
+          </Link>
         </div>
       ) : (
         <div className="flex flex-col items-center gap-4">

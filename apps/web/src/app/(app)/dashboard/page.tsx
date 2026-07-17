@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import Link from 'next/link'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 import {
-  TrendingUp, TrendingDown, CreditCard,
+  TrendingUp, TrendingDown, CreditCard, Plus,
   Wallet, Landmark, Banknote, ArrowRightLeft, Eye, EyeOff,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -227,6 +228,11 @@ export default function DashboardPage() {
       )}
 
       <div className="flex gap-3">
+        <Link href="/transactions" className="flex-1">
+          <Button variant="outline" className="w-full gap-2 h-11 rounded-xl font-medium text-sm">
+            <Plus className="h-4 w-4" /> New Transaction
+          </Button>
+        </Link>
         <Button variant="outline" className="flex-1 gap-2 h-11 rounded-xl font-medium text-sm" onClick={() => setTransferOpen(true)}>
           <ArrowRightLeft className="h-4 w-4" /> Transfer
         </Button>

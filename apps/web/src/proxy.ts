@@ -10,7 +10,8 @@ export function proxy(request: NextRequest) {
   const session = getSessionCookie(request)
 
   const isAuthPage = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register')
-  const isProtectedPage = request.nextUrl.pathname.startsWith('/dashboard')
+  const isProtectedPage = request.nextUrl.pathname.startsWith('/dashboard') ||
+    request.nextUrl.pathname.startsWith('/transactions')
 
   if (isAuthPage && session) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
