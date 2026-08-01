@@ -6,8 +6,8 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import { id as idLocale } from 'date-fns/locale'
 import {
-  TrendingUp, TrendingDown, CreditCard, Plus,
-  Wallet, Landmark, Banknote, ArrowRightLeft, Eye, EyeOff,
+  TrendingUp, TrendingDown, CreditCard, ArrowUpRight, Plus,
+  Wallet, Landmark, Banknote, ArrowRightLeft, Edit, Eye, EyeOff,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton'
@@ -196,8 +196,13 @@ export default function DashboardPage() {
 
       {accounts.length > 0 && (
         <div>
-          <div className="mb-3">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Accounts</h2>
+            <Link href="/accounts">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs h-7">
+                {accounts.length > 3 ? 'View All' : 'Manage'} <ArrowUpRight className="h-3 w-3" />
+              </Button>
+            </Link>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-none">
             {accounts.map(acc => {
@@ -213,6 +218,13 @@ export default function DashboardPage() {
                       <Icon className="h-3.5 w-3.5" />
                     </div>
                     <span className="text-[11px] font-medium text-muted-foreground truncate flex-1">{acc.name}</span>
+                    <Link
+                      href="/accounts"
+                      aria-label={`Edit ${acc.name}`}
+                      className="p-1 rounded hover:bg-muted transition-colors"
+                    >
+                      <Edit className="h-3 w-3 text-muted-foreground" />
+                    </Link>
                   </div>
                   <p className={cn(
                     'font-heading text-base font-bold tabular-nums',
@@ -236,6 +248,11 @@ export default function DashboardPage() {
         <Button variant="outline" className="flex-1 gap-2 h-11 rounded-xl font-medium text-sm" onClick={() => setTransferOpen(true)}>
           <ArrowRightLeft className="h-4 w-4" /> Transfer
         </Button>
+        <Link href="/accounts" className="flex-1">
+          <Button variant="outline" className="w-full gap-2 h-11 rounded-xl font-medium text-sm">
+            <Landmark className="h-4 w-4" /> Accounts
+          </Button>
+        </Link>
       </div>
 
       <div className="grid gap-6 md:grid-cols-5">

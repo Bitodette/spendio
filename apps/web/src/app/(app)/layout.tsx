@@ -5,7 +5,9 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, LogOut, Menu, X, TrendingUp } from 'lucide-react'
+import {
+  LayoutDashboard, LogOut, Menu, X, PieChart, TrendingUp,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { WalletIcon } from '@/components/wallet-icon'
@@ -13,6 +15,8 @@ import { WalletIcon } from '@/components/wallet-icon'
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Transactions', href: '/transactions', icon: TrendingUp },
+  { name: 'Accounts', href: '/accounts', icon: WalletIcon },
+  { name: 'Categories', href: '/categories', icon: PieChart },
 ]
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
