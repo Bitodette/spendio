@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useAuth } from '@/lib/auth'
 import { cn } from '@/lib/utils'
 import {
-  LayoutDashboard, Target, LogOut, Menu, X, PieChart, TrendingUp, PiggyBank,
+  LayoutDashboard, Target, LogOut, Menu, X, PieChart, TrendingUp, Repeat, PiggyBank,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -17,6 +17,7 @@ const navigation = [
   { name: 'Transactions', href: '/transactions', icon: TrendingUp },
   { name: 'Accounts', href: '/accounts', icon: WalletIcon },
   { name: 'Categories', href: '/categories', icon: PieChart },
+  { name: 'Recurring', href: '/recurring', icon: Repeat },
   { name: 'Budgets', href: '/budgets', icon: Target },
   { name: 'Savings', href: '/savings', icon: PiggyBank },
 ]

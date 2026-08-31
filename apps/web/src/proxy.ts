@@ -15,7 +15,8 @@ export function proxy(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/accounts') ||
     request.nextUrl.pathname.startsWith('/categories') ||
     request.nextUrl.pathname.startsWith('/budgets') ||
-    request.nextUrl.pathname.startsWith('/savings')
+    request.nextUrl.pathname.startsWith('/savings') ||
+    request.nextUrl.pathname.startsWith('/recurring')
 
   if (isAuthPage && session) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
