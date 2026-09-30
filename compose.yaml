@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: spendio-postgres
+    environment:
+      POSTGRES_USER: spendio
+      POSTGRES_PASSWORD: spendio
+      POSTGRES_DB: spendio
+    ports:
+      - "5433:5432"
+    volumes:
+      - spendio-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spendio -d spendio"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  spendio-postgres:

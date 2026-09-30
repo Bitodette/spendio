@@ -16,6 +16,8 @@
     "typecheck": "npm run build -w @spendio/shared && npm run typecheck --workspaces --if-present",
     "start:web": "npm run start -w @spendio/web",
     "start:api": "npm run start -w @spendio/api",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
     "db:generate": "npm run db:generate -w @spendio/api",
     "db:migrate": "npm run db:migrate -w @spendio/api",
     "db:check": "npm run db:check -w @spendio/api",
