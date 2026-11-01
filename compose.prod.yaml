@@ -1,0 +1,25 @@
+# Production Postgres for the API on EC2.
+# Start with: docker compose -f compose.prod.yaml up -d
+# Reads POSTGRES_PASSWORD from a .env file in this directory or the shell.
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: spendio-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-spendio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD (see docs/deploy-aws.md)}
+      POSTGRES_DB: ${POSTGRES_DB:-spendio}
+    # Loopback-only: never expose the database to the internet.
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - spendio-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-spendio} -d ${POSTGRES_DB:-spendio}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  spendio-postgres-data:

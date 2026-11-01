@@ -36,18 +36,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const session = (data?.session as AuthSession | undefined) ?? null
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await authClient.signIn.email({ email, password })
-    return { error: error ? new Error(error.message) : null }
+    try {
+      const { error } = await authClient.signIn.email({ email, password })
+      return { error: error ? new Error(error.message) : null }
+    } catch {
+      return { error: new Error('Could not reach the server. Check your connection and try again.') }
+    }
   }
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    const { error } = await authClient.signUp.email({
-      email,
-      password,
-      name: fullName?.trim() || email.split('@')[0],
-      callbackURL: `${window.location.origin}/dashboard`,
-    })
-    return { error: error ? new Error(error.message) : null }
+    try {
+      const { error } = await authClient.signUp.email({
+        email,
+        password,
+        name: fullName?.trim() || email.split('@')[0],
+        callbackURL: `${window.location.origin}/dashboard`,
+      })
+      return { error: error ? new Error(error.message) : null }
+    } catch {
+      return { error: new Error('Could not reach the server. Check your connection and try again.') }
+    }
   }
 
   const signOut = async () => {
@@ -55,15 +63,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signInWithGoogle = async () => {
-    const { data, error } = await authClient.signIn.social({
-      provider: 'google',
-      callbackURL: `${window.location.origin}/dashboard`,
-      errorCallbackURL: `${window.location.origin}/login`,
-    })
+    try {
+      const { data, error } = await authClient.signIn.social({
+        provider: 'google',
+        callbackURL: `${window.location.origin}/dashboard`,
+        errorCallbackURL: `${window.location.origin}/login`,
+      })
 
-    if (error) return { error: new Error(error.message) }
-    if (data?.url) window.location.href = data.url
-    return { error: null }
+      if (error) return { error: new Error(error.message) }
+      if (data?.url) {
+        window.location.href = data.url
+        return { error: null }
+      }
+      return { error: new Error('Google sign-in did not return a redirect URL.') }
+    } catch {
+      return { error: new Error('Could not reach the server. Check your connection and try again.') }
+    }
   }
 
   return (

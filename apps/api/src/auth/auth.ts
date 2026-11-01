@@ -21,6 +21,15 @@ const googleClientId = process.env.GOOGLE_CLIENT_ID
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET
 
 /**
+ * When the web app and the API live on sibling subdomains (`example.com` +
+ * `api.example.com`), the session cookie must be scoped to the parent domain.
+ * Otherwise it is host-only for the API host and the web app's middleware
+ * cannot see it, so every protected page bounces back to /login right after
+ * a successful OAuth callback. Leave unset for localhost.
+ */
+const cookieDomain = process.env.COOKIE_DOMAIN?.trim()
+
+/**
  * UUID ids keep migrated users and their references stable. Bcrypt keeps legacy
  * password hashes working, and a hook creates the profile row for each user.
  */
@@ -34,6 +43,14 @@ export const auth = betterAuth({
     database: {
       generateId: () => randomUUID(),
     },
+    ...(cookieDomain
+      ? {
+          crossSubDomainCookies: {
+            enabled: true,
+            domain: cookieDomain,
+          },
+        }
+      : {}),
   },
   emailAndPassword: {
     enabled: true,
