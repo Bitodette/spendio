@@ -1,15 +1,29 @@
 import { format } from 'date-fns'
 import { apiFetch } from '@/lib/api/client'
 import { fromMoney } from '@/lib/api/money'
-import type { Account, AccountRef, AccountType, CategoryWithColor, RecentTransaction, TxType, TxnAmount } from '@/types/database'
+import type {
+  Account,
+  AccountRef,
+  AccountType,
+  CategoryWithColor,
+  DailyTotal,
+  MonthlyTotal,
+  RecentTransaction,
+  TxType,
+  TxnAmount,
+} from '@/types/database'
 
 export const RECENT_LIMIT = 10
 
 export interface DashboardData {
   accounts: Account[]
   recent: RecentTransaction[]
-  // The summary and both charts use the full window, so this must not truncate.
-  allMonthly: TxnAmount[]
+  // Current-month rows feed the category breakdown. Historical trend data is
+  // aggregated by the API so every year stays available without loading every
+  // transaction into the browser.
+  currentMonth: TxnAmount[]
+  monthlyTotals: MonthlyTotal[]
+  dailyTotals: DailyTotal[]
   categories: CategoryWithColor[]
 }
 
@@ -40,6 +54,18 @@ interface DashboardTxnAmountDto {
   categoryId: string | null
 }
 
+interface DashboardMonthlyTotalDto {
+  month: string
+  income: string
+  expense: string
+}
+
+interface DashboardDailyTotalDto {
+  date: string
+  income: string
+  expense: string
+}
+
 interface DashboardCategoryDto {
   id: string
   name: string
@@ -51,7 +77,9 @@ interface DashboardCategoryDto {
 interface DashboardResponseDto {
   accounts: DashboardAccountDto[]
   recent: DashboardRecentDto[]
-  allMonthly: DashboardTxnAmountDto[]
+  currentMonth: DashboardTxnAmountDto[]
+  monthlyTotals: DashboardMonthlyTotalDto[]
+  dailyTotals: DashboardDailyTotalDto[]
   categories: DashboardCategoryDto[]
 }
 
@@ -78,11 +106,21 @@ export async function fetchDashboardData(now = new Date()): Promise<DashboardDat
       category_id: transaction.categoryId,
       account: transaction.account,
     })),
-    allMonthly: data.allMonthly.map(transaction => ({
+    currentMonth: data.currentMonth.map(transaction => ({
       amount: fromMoney(transaction.amount),
       type: transaction.type,
       date: transaction.date,
       category_id: transaction.categoryId,
+    })),
+    monthlyTotals: data.monthlyTotals.map(total => ({
+      month: total.month,
+      income: fromMoney(total.income),
+      expense: fromMoney(total.expense),
+    })),
+    dailyTotals: data.dailyTotals.map(total => ({
+      date: total.date,
+      income: fromMoney(total.income),
+      expense: fromMoney(total.expense),
     })),
     categories: data.categories.map(category => ({
       id: category.id,

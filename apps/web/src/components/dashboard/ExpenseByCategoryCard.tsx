@@ -2,84 +2,83 @@
 
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { Button } from '@/components/ui/button'
-import { ChartTooltip } from '@/components/dashboard/ChartTooltip'
-import { flattenChildren, type CategorySlice } from '@/lib/analytics/categories'
-import { cn, formatCurrency } from '@/lib/utils'
+import type { CategorySlice } from '@/lib/analytics/categories'
+import { formatCurrency } from '@/lib/utils'
 
-export function ExpenseByCategoryCard({ slices }: { slices: CategorySlice[] }) {
-  const cells = flattenChildren(slices)
+const MAX_ROWS = 8
+
+export function ExpenseByCategoryCard({
+  slices,
+  periodLabel,
+}: {
+  slices: CategorySlice[]
+  periodLabel: string
+}) {
+  const total = slices.reduce((sum, slice) => sum + slice.value, 0)
+  const rows = slices.length > MAX_ROWS
+    ? [
+        ...slices.slice(0, MAX_ROWS - 1),
+        {
+          name: 'Other categories',
+          value: slices.slice(MAX_ROWS - 1).reduce((sum, slice) => sum + slice.value, 0),
+          color: 'var(--color-muted-foreground)',
+        },
+      ]
+    : slices
 
   return (
     <div className="md:col-span-2 rounded-xl border border-border bg-card p-5">
-      <div className="mb-1">
-        <h2 className="font-heading text-sm font-semibold text-foreground">Expense by Category</h2>
-        <p className="text-xs text-muted-foreground">Last 6 months</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-heading text-sm font-semibold text-foreground">Spending by category</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{periodLabel}</p>
+        </div>
+        <p className="font-heading text-sm font-semibold tabular-nums text-foreground">
+          {formatCurrency(total)}
+        </p>
       </div>
 
       {slices.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 text-center">
-          <p className="text-sm text-muted-foreground">No expense data yet</p>
+        <div className="flex h-[268px] flex-col items-center justify-center text-center">
+          <p className="text-sm text-muted-foreground">No spending recorded</p>
+          <p className="mt-1 text-xs text-muted-foreground">Expenses you add will show up here.</p>
           <Link href="/transactions">
             <Button variant="outline" size="sm" className="mt-3 gap-1.5">
-              <Plus className="h-3.5 w-3.5" /> Add Transaction
+              <Plus className="h-3.5 w-3.5" /> Add transaction
             </Button>
           </Link>
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-4">
-          <ResponsiveContainer width="100%" height={180}>
-            <PieChart>
-              <Pie
-                data={cells}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius={45}
-                outerRadius={70}
-                paddingAngle={0}
-                strokeWidth={1}
-                stroke="hsl(var(--background))"
-              >
-                {cells.map((cell, i) => (
-                  <Cell key={`${cell.name}-${i}`} fill={cell.color} />
-                ))}
-              </Pie>
-              <Tooltip content={<ChartTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-
-          <div className="w-full space-y-2">
-            {slices.map(slice => {
-              const split = slice.children.length > 1
-              return (
-                <div key={slice.name}>
-                  <div className="flex items-center gap-2">
-                    {!split && <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: slice.color }} />}
-                    <span className={cn('flex-1 truncate', split ? 'text-[11px] font-medium text-foreground' : 'text-[11px] text-muted-foreground')}>
-                      {slice.name}
-                    </span>
-                    <span className={cn('tabular-nums', split ? 'text-[11px] font-medium text-foreground' : 'text-[11px] text-muted-foreground')}>
-                      {formatCurrency(slice.value)}
-                    </span>
-                  </div>
-                  {split && (
-                    <div className="ml-4 mt-0.5 space-y-0.5">
-                      {slice.children.map(child => (
-                        <div key={child.name} className="flex items-center gap-2">
-                          <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: child.color }} />
-                          <span className="text-[10px] text-muted-foreground flex-1 truncate">{child.name}</span>
-                          <span className="text-[10px] text-muted-foreground tabular-nums">{formatCurrency(child.value)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+        <div className="mt-5 space-y-3.5">
+          {rows.map(row => {
+            const share = total > 0 ? (row.value / total) * 100 : 0
+            return (
+              <div key={row.name}>
+                <div className="flex items-baseline gap-2">
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: row.color }}
+                  />
+                  <span className="flex-1 truncate text-xs font-medium text-foreground">
+                    {row.name}
+                  </span>
+                  <span className="text-xs tabular-nums text-foreground">
+                    {formatCurrency(row.value)}
+                  </span>
+                  <span className="w-8 text-right text-[11px] tabular-nums text-muted-foreground">
+                    {share.toFixed(0)}%
+                  </span>
                 </div>
-              )
-            })}
-          </div>
+                <div className="mt-1.5 ml-4 h-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${share}%`, backgroundColor: row.color }}
+                  />
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

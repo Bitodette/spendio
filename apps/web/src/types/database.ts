@@ -40,6 +40,18 @@ export interface TxnAmount {
   category_id: string | null
 }
 
+export interface MonthlyTotal {
+  month: string
+  income: number
+  expense: number
+}
+
+export interface DailyTotal {
+  date: string
+  income: number
+  expense: number
+}
+
 export interface RecentTransaction extends TxnAmount {
   id: string
   description: string | null

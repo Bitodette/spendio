@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   budgetWindow,
-  dashboardWindowStart,
   dateWindow,
   nextFrequencyDate,
   parseNow,
@@ -23,7 +22,7 @@ describe('dateWindow', () => {
   })
 })
 
-describe('budget and dashboard windows', () => {
+describe('budget windows', () => {
   it('maps monthOffset 0 to the current month and 1 to the previous month', () => {
     expect(budgetWindow('monthly', 0, now)).toEqual({ start: '2026-10-01', end: '2026-10-31' })
     expect(budgetWindow('monthly', 1, now)).toEqual({ start: '2026-09-01', end: '2026-09-30' })
@@ -31,10 +30,6 @@ describe('budget and dashboard windows', () => {
 
   it('uses the current calendar year for yearly budgets', () => {
     expect(budgetWindow('yearly', 3, now)).toEqual({ start: '2026-01-01', end: '2026-12-31' })
-  })
-
-  it('starts the dashboard trend six months back, including the current month', () => {
-    expect(dashboardWindowStart(6, now)).toBe('2026-05-26')
   })
 })
 

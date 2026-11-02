@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { and, asc, desc, eq, gte, lt } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, lt, sql } from 'drizzle-orm'
 import {
   dashboardQuerySchema,
   dashboardResponseSchema,
@@ -10,13 +10,13 @@ import { accounts, categories, transactions } from '../../db/schema.js'
 import { requireAuth } from '../../auth/middleware.js'
 import {
   currentMonthBounds,
-  dashboardWindowStart,
   parseNow,
 } from '../../lib/dates.js'
 
-/** Mirrors the web's `MONTH_WINDOW`; the trend chart depends on this window. */
-const MONTH_WINDOW = 6
 const RECENT_LIMIT = 10
+
+const incomeSum = sql<string>`coalesce(sum(case when ${transactions.type} = 'income' then ${transactions.amount} else 0 end), 0)`
+const expenseSum = sql<string>`coalesce(sum(case when ${transactions.type} = 'expense' then ${transactions.amount} else 0 end), 0)`
 
 export const dashboardRouter = Router()
 dashboardRouter.use(requireAuth)
@@ -26,9 +26,8 @@ dashboardRouter.get('/', async (req, res) => {
   const { now: nowParam } = dashboardQuerySchema.parse(req.query)
   const now = parseNow(nowParam)
   const currentMonth = currentMonthBounds(now)
-  const trendStart = dashboardWindowStart(MONTH_WINDOW, now)
 
-  const [accountRows, recentRows, monthlyRows, categoryRows] = await Promise.all([
+  const [accountRows, recentRows, currentMonthRows, monthlyTotals, dailyTotals, categoryRows] = await Promise.all([
     db
       .select({
         id: accounts.id,
@@ -78,9 +77,35 @@ dashboardRouter.get('/', async (req, res) => {
       .where(
         and(
           eq(transactions.userId, userId),
-          gte(transactions.date, trendStart),
+          gte(transactions.date, currentMonth.start),
+          lt(transactions.date, currentMonth.end),
         ),
       ),
+
+    // All-time monthly totals keep the yearly view complete without shipping
+    // every transaction to the browser.
+    db
+      .select({
+        month: sql<string>`to_char(${transactions.date}, 'YYYY-MM')`,
+        income: incomeSum,
+        expense: expenseSum,
+      })
+      .from(transactions)
+      .where(eq(transactions.userId, userId))
+      .groupBy(sql`to_char(${transactions.date}, 'YYYY-MM')`)
+      .orderBy(sql`to_char(${transactions.date}, 'YYYY-MM')`),
+
+    // Daily totals back the month-to-date comparison and the daily chart.
+    db
+      .select({
+        date: transactions.date,
+        income: incomeSum,
+        expense: expenseSum,
+      })
+      .from(transactions)
+      .where(eq(transactions.userId, userId))
+      .groupBy(transactions.date)
+      .orderBy(transactions.date),
 
     db
       .select({
@@ -110,7 +135,9 @@ dashboardRouter.get('/', async (req, res) => {
     parseResponse(dashboardResponseSchema, {
       accounts: accountRows,
       recent,
-      allMonthly: monthlyRows,
+      currentMonth: currentMonthRows,
+      monthlyTotals,
+      dailyTotals,
       categories: categoryRows,
     }),
   )

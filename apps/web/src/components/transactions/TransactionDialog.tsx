@@ -1,12 +1,19 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Fragment, useEffect } from 'react'
 import { Controller } from 'react-hook-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { createTransactionSchema, type CreateTransactionInput } from '@spendio/shared'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
@@ -79,6 +86,7 @@ export function TransactionDialog({ open, onOpenChange, editing, accounts, categ
 
   const parents = categories.filter(c => c.type === type && c.parent_id === null)
   const children = categories.filter(c => c.type === type && c.parent_id !== null)
+  const orphanChildren = children.filter(c => !parents.some(parent => parent.id === c.parent_id))
 
   const saveMutation = useMutation({
     mutationFn: async (payload: CreateTransactionInput) => {
@@ -108,9 +116,12 @@ export function TransactionDialog({ open, onOpenChange, editing, accounts, categ
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-heading">{editing ? 'Edit Transaction' : 'Add Transaction'}</DialogTitle>
+          <DialogTitle>{editing ? 'Edit transaction' : 'New transaction'}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Record money spent or received, with the account, category, and date.
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit(submit)} className="space-y-4 py-2">
+        <form onSubmit={handleSubmit(submit)} className="space-y-5 py-2">
           <Controller
             control={control}
             name="type"
@@ -131,26 +142,32 @@ export function TransactionDialog({ open, onOpenChange, editing, accounts, categ
           />
 
           <div className="space-y-2">
-            <Label htmlFor="amount" className="text-sm font-medium">Amount (Rp)</Label>
-            <Controller
-              control={control}
-              name="amount"
-              render={({ field }) => (
-                <MoneyInput
-                  id="amount"
-                  placeholder="0"
-                  value={field.value}
-                  onValueChange={field.onChange}
-                  onBlur={field.onBlur}
-                  name={field.name}
-                  aria-invalid={Boolean(errors.amount)}
-                />
-              )}
-            />
+            <Label htmlFor="amount" className="text-sm font-medium">Amount</Label>
+            <div className="relative">
+              <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm font-medium text-muted-foreground">
+                Rp
+              </span>
+              <Controller
+                control={control}
+                name="amount"
+                render={({ field }) => (
+                  <MoneyInput
+                    id="amount"
+                    className="h-11 pl-9 text-lg font-semibold tabular-nums"
+                    placeholder="0"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    aria-invalid={Boolean(errors.amount)}
+                  />
+                )}
+              />
+            </div>
             <FieldError error={errors.amount} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="account" className="text-sm font-medium">Account</Label>
               <Controller
@@ -158,11 +175,13 @@ export function TransactionDialog({ open, onOpenChange, editing, accounts, categ
                 name="accountId"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="account" aria-invalid={Boolean(errors.accountId)}>
-                      <SelectValue />
+                    <SelectTrigger id="account" className="w-full" aria-invalid={Boolean(errors.accountId)}>
+                      <SelectValue placeholder="Select account" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                    <SelectContent position="popper" sideOffset={4}>
+                      {accounts.map(a => (
+                        <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 )}
@@ -179,11 +198,28 @@ export function TransactionDialog({ open, onOpenChange, editing, accounts, categ
                     value={field.value ?? 'none'}
                     onValueChange={value => field.onChange(value === 'none' ? null : value)}
                   >
-                    <SelectTrigger id="category"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectTrigger id="category" className="w-full">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {parents.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                      {children.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                      <SelectItem value="none">Uncategorized</SelectItem>
+                      {parents.map(parent => (
+                        <Fragment key={parent.id}>
+                          <SelectItem value={parent.id}>{parent.name}</SelectItem>
+                          {children
+                            .filter(child => child.parent_id === parent.id)
+                            .map(child => (
+                              <SelectItem key={child.id} value={child.id} className="pl-12">
+                                {child.name}
+                              </SelectItem>
+                            ))}
+                        </Fragment>
+                      ))}
+                      {orphanChildren.map(child => (
+                        <SelectItem key={child.id} value={child.id} className="pl-12">
+                          {child.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 )}
@@ -191,35 +227,36 @@ export function TransactionDialog({ open, onOpenChange, editing, accounts, categ
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="date" className="text-sm font-medium">Date</Label>
-            <Input
-              id="date"
-              type="date"
-              aria-invalid={Boolean(errors.date)}
-              {...register('date')}
-            />
-            <FieldError error={errors.date} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description" className="text-sm font-medium">
-              Description <span className="text-muted-foreground">(optional)</span>
-            </Label>
-            <Controller
-              control={control}
-              name="description"
-              render={({ field }) => (
-                <Input
-                  id="description"
-                  placeholder="Additional notes..."
-                  value={field.value ?? ''}
-                  onChange={event => field.onChange(event.target.value || null)}
-                  onBlur={field.onBlur}
-                  name={field.name}
-                />
-              )}
-            />
+          <div className="grid gap-4 sm:grid-cols-[10rem_1fr]">
+            <div className="space-y-2">
+              <Label htmlFor="date" className="text-sm font-medium">Date</Label>
+              <Input
+                id="date"
+                type="date"
+                aria-invalid={Boolean(errors.date)}
+                {...register('date')}
+              />
+              <FieldError error={errors.date} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-sm font-medium">
+                Description <span className="text-muted-foreground">(optional)</span>
+              </Label>
+              <Controller
+                control={control}
+                name="description"
+                render={({ field }) => (
+                  <Input
+                    id="description"
+                    placeholder="e.g. Lunch with the team"
+                    value={field.value ?? ''}
+                    onChange={event => field.onChange(event.target.value || null)}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                  />
+                )}
+              />
+            </div>
           </div>
 
           <ErrorNotice error={saveMutation.error} className="text-xs" />
@@ -227,7 +264,11 @@ export function TransactionDialog({ open, onOpenChange, editing, accounts, categ
           <DialogFooter className="gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => close(false)}>Cancel</Button>
             <Button type="submit" disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? 'Saving...' : editing ? 'Update' : 'Save'}
+              {saveMutation.isPending
+                ? 'Saving...'
+                : editing
+                  ? 'Save changes'
+                  : 'Add transaction'}
             </Button>
           </DialogFooter>
         </form>

@@ -42,10 +42,24 @@ const dashboardCategorySchema = z.object({
   type: txTypeSchema,
 })
 
+const dashboardMonthlyTotalSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/),
+  income: z.string(),
+  expense: z.string(),
+})
+
+const dashboardDailyTotalSchema = z.object({
+  date: isoDateSchema,
+  income: z.string(),
+  expense: z.string(),
+})
+
 export const dashboardResponseSchema = z.object({
   accounts: z.array(dashboardAccountSchema),
   recent: z.array(dashboardRecentSchema),
-  allMonthly: z.array(dashboardTxnAmountSchema),
+  currentMonth: z.array(dashboardTxnAmountSchema),
+  monthlyTotals: z.array(dashboardMonthlyTotalSchema),
+  dailyTotals: z.array(dashboardDailyTotalSchema),
   categories: z.array(dashboardCategorySchema),
 })
 

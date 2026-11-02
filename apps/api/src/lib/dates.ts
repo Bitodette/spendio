@@ -59,11 +59,6 @@ export function budgetWindow(
   }
 }
 
-/** Inclusive start of the trend window. */
-export function dashboardWindowStart(months: number, now = new Date()): string {
-  return format(subMonths(now, months - 1), 'yyyy-MM-dd')
-}
-
 export function currentMonthBounds(now = new Date()): { start: string; end: string } {
   return {
     start: format(startOfMonth(now), 'yyyy-MM-dd'),
