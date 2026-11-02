@@ -9,6 +9,12 @@ import { getSessionCookie } from 'better-auth/cookies'
 export function proxy(request: NextRequest) {
   const session = getSessionCookie(request)
 
+  // Signed-in visitors skip the landing page entirely, without waiting for a
+  // client-side session check.
+  if (request.nextUrl.pathname === '/' && session) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
   const isAuthPage = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register')
   const isProtectedPage = request.nextUrl.pathname.startsWith('/dashboard') ||
     request.nextUrl.pathname.startsWith('/transactions') ||
