@@ -3,11 +3,16 @@ import { cn } from "@/lib/utils"
 
 function Progress({
   className,
+  indicatorClassName,
   value = 0,
   max = 100,
   ...props
-}: React.ComponentProps<"div"> & { value?: number; max?: number }) {
-  const percentage = Math.min(Math.max((value / max) * 100, 0), 100)
+}: React.ComponentProps<"div"> & {
+  value?: number
+  max?: number
+  indicatorClassName?: string
+}) {
+  const percentage = max <= 0 ? 0 : Math.min(Math.max((value / max) * 100, 0), 100)
 
   return (
     <div
@@ -22,7 +27,10 @@ function Progress({
       {...props}
     >
       <div
-        className="h-full rounded-full transition-all duration-300 ease-in-out"
+        className={cn(
+          "h-full rounded-full bg-primary transition-all duration-300 ease-in-out",
+          indicatorClassName,
+        )}
         style={{ width: `${percentage}%` }}
       />
     </div>

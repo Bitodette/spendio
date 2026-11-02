@@ -13,7 +13,7 @@ export function normalizeMoney(value: string | number): string {
   const unsigned = negative ? raw.slice(1) : raw
 
   if (!RAW_MONEY.test(unsigned)) {
-    throw new Error('Money must be a decimal with at most two fractional digits')
+    throw new Error('Enter a valid amount with at most 2 decimal places')
   }
 
   const [whole, fraction = ''] = unsigned.split('.')
@@ -42,12 +42,17 @@ export function addMoney(left: string, right: string): string {
 const moneyInputSchema = z
   .union([z.string(), z.number()])
   .transform((value, ctx) => {
+    if (typeof value === 'string' && value.trim() === '') {
+      ctx.addIssue({ code: 'custom', message: 'Enter an amount' })
+      return z.NEVER
+    }
+
     try {
       return normalizeMoney(value)
     } catch (error) {
       ctx.addIssue({
         code: 'custom',
-        message: error instanceof Error ? error.message : 'Invalid money value',
+        message: error instanceof Error ? error.message : 'Enter a valid amount',
       })
       return z.NEVER
     }
@@ -57,7 +62,7 @@ export const moneySchema = moneyInputSchema
 
 export const positiveMoneySchema = moneyInputSchema.refine(
   value => moneyToCents(value) > 0n,
-  { message: 'Amount must be greater than zero' },
+  { message: 'Enter an amount greater than zero' },
 )
 
 export const nonNegativeMoneySchema = moneyInputSchema.refine(
@@ -93,7 +98,11 @@ export const accountTypeSchema = z.enum(['bank', 'e-wallet', 'cash'])
 export const frequencySchema = z.enum(['weekly', 'monthly', 'yearly'])
 export const budgetPeriodSchema = z.enum(['monthly', 'yearly'])
 
-export const nameSchema = z.string().trim().min(1).max(100)
+export const nameSchema = z
+  .string()
+  .trim()
+  .min(1, 'Name is required')
+  .max(100, 'Name must be 100 characters or fewer')
 export const optionalTextSchema = z.string().trim().max(500).nullable()
 export const colorSchema = z.string().trim().max(32).nullable()
 export const iconSchema = z.string().trim().max(64).nullable()

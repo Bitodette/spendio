@@ -14,7 +14,9 @@ export function useZodForm<TInput extends FieldValues, TOutput extends FieldValu
   options?: Omit<UseFormProps<TInput, unknown, TOutput>, 'resolver'>,
 ) {
   return useForm<TInput, unknown, TOutput>({
-    mode: 'onTouched',
+    // Validate only when the user submits, then revalidate as they correct it.
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
     ...options,
     resolver: zodResolver(schema) as Resolver<TInput, unknown, TOutput>,
   })

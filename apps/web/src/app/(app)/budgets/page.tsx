@@ -1,21 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { format, subMonths } from 'date-fns'
+import {
+  AlertTriangle, ChevronLeft, ChevronRight, Pencil, Plus, Target, Trash2, TrendingDown, TrendingUp,
+} from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import {
   createBudget, deleteBudget, listBudgetsWithSpending, updateBudget,
   type BudgetInput, type BudgetWithSpent,
 } from '@/lib/api/budgets'
 import { listExpenseCategories } from '@/lib/api/categories'
-import { format, subMonths } from 'date-fns'
-import {
-  Target, Plus, Edit, Trash2, AlertTriangle, TrendingUp, TrendingDown,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
 import { queryKeys } from '@/lib/query-keys'
+import { Button } from '@/components/ui/button'
 import { ErrorNotice } from '@/components/ui/error-notice'
+import { InlineConfirm } from '@/components/ui/inline-confirm'
+import { Progress } from '@/components/ui/progress'
+import { SuccessNotice } from '@/components/ui/success-notice'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BudgetFormDialog } from '@/components/forms/budget-form-dialog'
 import { cn, formatCurrency } from '@/lib/utils'
 
@@ -26,6 +29,14 @@ export default function BudgetsPage() {
   const [editingBudget, setEditingBudget] = useState<BudgetWithSpent | null>(null)
   const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly')
   const [monthOffset, setMonthOffset] = useState(0)
+  const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!notice) return
+    const timer = setTimeout(() => setNotice(null), 3000)
+    return () => clearTimeout(timer)
+  }, [notice])
 
   const periodLabel = period === 'monthly'
     ? format(subMonths(new Date(), monthOffset), 'MMMM yyyy')
@@ -56,29 +67,37 @@ export default function BudgetsPage() {
     },
     onSuccess: async () => {
       setDialogOpen(false)
+      setNotice(editingBudget ? 'Budget updated' : 'Budget added')
       await queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
     },
   })
 
   const deleteMutation = useMutation({
     mutationFn: deleteBudget,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all }),
+    onSuccess: async () => {
+      setConfirmingId(null)
+      setNotice('Budget deleted')
+      await queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
+    },
   })
 
   const openAddDialog = () => {
     saveMutation.reset()
+    deleteMutation.reset()
+    setConfirmingId(null)
     setEditingBudget(null)
     setDialogOpen(true)
   }
 
   const openEditDialog = (b: BudgetWithSpent) => {
     saveMutation.reset()
+    deleteMutation.reset()
+    setConfirmingId(null)
     setEditingBudget(b)
     setDialogOpen(true)
   }
 
   const handleDelete = (id: string) => {
-    if (!confirm('Delete this budget?')) return
     deleteMutation.reset()
     deleteMutation.mutate(id)
   }
@@ -87,6 +106,46 @@ export default function BudgetsPage() {
     if (pct >= 100) return 'bg-red-500'
     if (pct >= 80) return 'bg-amber-500'
     return 'bg-emerald-500'
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="mb-2 h-9 w-44 animate-pulse rounded bg-muted" />
+            <div className="h-4 w-64 max-w-full animate-pulse rounded bg-muted" />
+          </div>
+          <div className="h-10 w-32 animate-pulse rounded-lg bg-muted" />
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="h-8 w-48 animate-pulse rounded-lg bg-muted" />
+          <div className="h-9 w-56 animate-pulse rounded-lg bg-muted" />
+        </div>
+        <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-3">
+          {[1, 2, 3].map(item => (
+            <div key={item} className="bg-card p-5">
+              <div className="mb-2 h-3 w-20 animate-pulse rounded bg-muted" />
+              <div className="h-7 w-28 animate-pulse rounded bg-muted" />
+            </div>
+          ))}
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3].map(item => (
+            <div key={item} className="rounded-xl border border-border bg-card p-5">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="h-10 w-10 animate-pulse rounded-xl bg-muted" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+                  <div className="h-3 w-48 animate-pulse rounded bg-muted" />
+                </div>
+              </div>
+              <div className="h-2 animate-pulse rounded-full bg-muted" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   if (budgetsQuery.isError && !budgetsQuery.data) {
@@ -100,17 +159,18 @@ export default function BudgetsPage() {
 
   const totalBudget = budgets.reduce((sum, b) => sum + Number(b.amount), 0)
   const totalSpent = budgets.reduce((sum, b) => sum + b.spent, 0)
+  const totalRemaining = totalBudget - totalSpent
   const overBudgetCount = budgets.filter(b => b.percentage >= 100).length
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">Budgets</h1>
-          <p className="text-sm text-muted-foreground mt-1">Track spending against your limits</p>
+          <h1 className="font-heading text-3xl font-bold text-foreground">Budgets</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Track spending against your limits</p>
         </div>
-        <Button onClick={openAddDialog} className="gap-2 shrink-0" disabled={categoriesUnavailable}>
-          <Plus className="h-4 w-4" /> Add Budget
+        <Button onClick={openAddDialog} className="h-10 gap-2" disabled={categoriesUnavailable}>
+          <Plus className="h-4 w-4" /> Add budget
         </Button>
       </div>
 
@@ -126,154 +186,241 @@ export default function BudgetsPage() {
 
       {deleteMutation.error && <ErrorNotice error={deleteMutation.error} />}
 
-      <div className="flex items-center gap-3">
-        <div className="flex rounded-lg border border-border p-0.5 bg-muted/50">
-          <button
-            onClick={() => setPeriod('monthly')}
-            className={cn(
-              'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
-              period === 'monthly'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            Monthly
-          </button>
-          <button
-            onClick={() => setPeriod('yearly')}
-            className={cn(
-              'px-3 py-1.5 text-sm font-medium rounded-md transition-all',
-              period === 'yearly'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            Yearly
-          </button>
-        </div>
+      <SuccessNotice message={notice} />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Tabs value={period} onValueChange={value => setPeriod(value as 'monthly' | 'yearly')}>
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="monthly" className="flex-1 sm:flex-none">Monthly</TabsTrigger>
+            <TabsTrigger value="yearly" className="flex-1 sm:flex-none">Yearly</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         {period === 'monthly' && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 self-start rounded-lg border border-border bg-card p-1 sm:self-auto">
             <Button
-              variant="ghost" size="icon" className="h-8 w-8"
-              onClick={() => setMonthOffset(prev => prev + 1)}
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setMonthOffset(previous => Math.min(24, previous + 1))}
+              disabled={monthOffset >= 24}
+              aria-label="Previous month"
             >
-              <TrendingDown className="h-3.5 w-3.5" />
+              <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-medium min-w-[120px] text-center">{periodLabel}</span>
+            <span className="min-w-[7.5rem] text-center text-sm font-medium" aria-live="polite">
+              {periodLabel}
+            </span>
             <Button
-              variant="ghost" size="icon" className="h-8 w-8"
-              onClick={() => setMonthOffset(prev => Math.max(0, prev - 1))}
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setMonthOffset(previous => Math.max(0, previous - 1))}
+              disabled={monthOffset === 0}
+              aria-label="Next month"
             >
-              <TrendingUp className="h-3.5 w-3.5" />
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         )}
       </div>
 
       {budgets.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs text-muted-foreground mb-1">Total Budget</p>
-            <p className="text-lg font-heading font-bold tabular-nums">{formatCurrency(totalBudget)}</p>
+        <section>
+          <div className="mb-2 flex items-end justify-between gap-3">
+            <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Summary
+            </h2>
+            <p className="text-xs text-muted-foreground">{periodLabel}</p>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs text-muted-foreground mb-1">Spent</p>
-            <p className="text-lg font-heading font-bold tabular-nums">{formatCurrency(totalSpent)}</p>
+          <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-3">
+            <div className="bg-card p-3 sm:p-5">
+              <div className="mb-2 flex items-center gap-2">
+                <Target className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total budget</p>
+              </div>
+              <p className="font-heading text-xl font-bold tabular-nums text-foreground sm:text-2xl">
+                {formatCurrency(totalBudget)}
+              </p>
+            </div>
+            <div className="bg-card p-3 sm:p-5">
+              <div className="mb-2 flex items-center gap-2">
+                <TrendingUp className="h-3.5 w-3.5 text-red-600 dark:text-red-400" aria-hidden="true" />
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Spent</p>
+              </div>
+              <p className="font-heading text-xl font-bold tabular-nums text-red-600 dark:text-red-400 sm:text-2xl">
+                {formatCurrency(totalSpent)}
+              </p>
+            </div>
+            <div className="bg-card p-3 sm:p-5">
+              <div className="mb-2 flex items-center gap-2">
+                <TrendingDown
+                  className={cn(
+                    'h-3.5 w-3.5',
+                    totalRemaining < 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-emerald-600 dark:text-emerald-400',
+                  )}
+                  aria-hidden="true"
+                />
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Remaining</p>
+              </div>
+              <p className={cn(
+                'font-heading text-xl font-bold tabular-nums sm:text-2xl',
+                totalRemaining < 0
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-emerald-600 dark:text-emerald-400',
+              )}>
+                {formatCurrency(totalRemaining)}
+              </p>
+            </div>
           </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs text-muted-foreground mb-1">Over Budget</p>
-            <p className={cn('text-lg font-heading font-bold', overBudgetCount > 0 ? 'text-red-600 dark:text-red-400' : '')}>
-              {overBudgetCount}
-            </p>
-          </div>
-        </div>
+        </section>
       )}
 
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="rounded-xl border border-border bg-card p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-muted animate-pulse rounded w-1/3" />
-                  <div className="h-3 bg-muted animate-pulse rounded w-1/2" />
-                </div>
-              </div>
-              <div className="h-2 bg-muted animate-pulse rounded-full" />
-            </div>
-          ))}
-        </div>
-      ) : budgets.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mb-4">
-            <Target className="h-7 w-7 text-muted-foreground" />
+      <section>
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Your budgets
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Limits for {periodLabel}
+            </p>
           </div>
-          <h3 className="font-heading text-lg font-semibold mb-1">No budgets yet</h3>
-          <p className="text-sm text-muted-foreground mb-4">Set spending limits for your categories</p>
-          <Button onClick={openAddDialog} className="gap-2" disabled={categoriesUnavailable}>
-            <Plus className="h-4 w-4" /> Add Budget
-          </Button>
+          {overBudgetCount > 0 && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-400">
+              <AlertTriangle className="h-2.5 w-2.5" aria-hidden="true" />
+              {overBudgetCount} over budget
+            </span>
+          )}
         </div>
-      ) : (
-        <div className="space-y-3">
-          {budgets.map(b => {
-            const isOver = b.percentage >= 100
-            return (
-              <div
-                key={b.id}
-                className={cn(
-                  'rounded-xl border bg-card p-5 transition-all',
-                  isOver ? 'border-red-200 dark:border-red-900' : 'border-border'
-                )}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="h-9 w-9 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0"
-                      style={{ backgroundColor: b.category?.color || '#6366f1' }}
-                    >
-                      {b.category?.name?.charAt(0) || '?'}
+
+        {budgets.length === 0 ? (
+          <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-16 text-center">
+            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-muted">
+              <Target className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground">No budgets yet</p>
+            <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+              Set a spending limit for a category and track how much is left.
+            </p>
+            <Button
+              onClick={openAddDialog}
+              variant="outline"
+              size="sm"
+              className="mt-4 gap-1.5"
+              disabled={categoriesUnavailable}
+            >
+              <Plus className="h-3.5 w-3.5" /> Add budget
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {budgets.map(b => {
+              const isOver = b.percentage >= 100
+              const isConfirming = confirmingId === b.id
+              const color = b.category?.color || '#6366f1'
+
+              return (
+                <div
+                  key={b.id}
+                  className={cn(
+                    'rounded-xl border bg-card p-4 transition-colors sm:p-5',
+                    isOver ? 'border-red-200 dark:border-red-900/60' : 'border-border',
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-semibold"
+                        style={{ backgroundColor: `${color}15`, color }}
+                        aria-hidden="true"
+                      >
+                        {b.category?.name?.charAt(0).toUpperCase() || '?'}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {b.category?.name || 'Unknown category'}
+                          </p>
+                          {isOver && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-400">
+                              <AlertTriangle className="h-2.5 w-2.5" aria-hidden="true" />
+                              Over
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                          {formatCurrency(b.spent)} of {formatCurrency(Number(b.amount))}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-sm">{b.category?.name || 'Unknown'}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatCurrency(b.spent)} / {formatCurrency(Number(b.amount))}
-                      </p>
+
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 sm:h-8 sm:w-8"
+                        aria-label={`Edit budget for ${b.category?.name || 'category'}`}
+                        title="Edit"
+                        onClick={() => openEditDialog(b)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400 sm:h-8 sm:w-8"
+                        aria-label={`Delete budget for ${b.category?.name || 'category'}`}
+                        title="Delete"
+                        onClick={() => {
+                          deleteMutation.reset()
+                          setConfirmingId(b.id)
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {isOver && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 px-2 py-0.5 text-[10px] font-semibold">
-                        <AlertTriangle className="h-2.5 w-2.5" /> Over
-                      </span>
-                    )}
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditDialog(b)}>
-                      <Edit className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(b.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+
+                  <div className="mt-4">
+                    <Progress
+                      value={b.spent}
+                      max={Number(b.amount)}
+                      className="h-2"
+                      indicatorClassName={getBarColor(b.percentage)}
+                    />
                   </div>
+
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                      {Math.round(b.percentage)}% used
+                    </span>
+                    <span className={cn(
+                      'text-xs font-medium tabular-nums',
+                      isOver ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground',
+                    )}>
+                      {isOver
+                        ? `${formatCurrency(Math.abs(b.remaining))} over`
+                        : `${formatCurrency(b.remaining)} left`}
+                    </span>
+                  </div>
+
+                  {isConfirming && (
+                    <InlineConfirm
+                      className="mt-3"
+                      title={`Delete the ${b.category?.name || ''} budget?`}
+                      description="Your spending history stays the same; only the limit is removed."
+                      onCancel={() => setConfirmingId(null)}
+                      onConfirm={() => handleDelete(b.id)}
+                      isPending={deleteMutation.isPending && deleteMutation.variables === b.id}
+                    />
+                  )}
                 </div>
-                <div className="relative">
-                  <Progress value={b.spent} max={Number(b.amount)} className="h-2" />
-                  <div
-                    className={cn('absolute inset-y-0 left-0 rounded-full transition-all duration-300', getBarColor(b.percentage))}
-                    style={{ width: `${Math.min(b.percentage, 100)}%` }}
-                  />
-                </div>
-                <div className="flex justify-between mt-2">
-                  <span className="text-xs text-muted-foreground">{b.percentage}% used</span>
-                  <span className={cn('text-xs font-medium', isOver ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground')}>
-                    {isOver ? `${formatCurrency(Math.abs(b.remaining))} over` : `${formatCurrency(b.remaining)} left`}
-                  </span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
+              )
+            })}
+          </div>
+        )}
+      </section>
 
       <BudgetFormDialog
         open={dialogOpen}

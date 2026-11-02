@@ -5,7 +5,9 @@ import { Controller } from 'react-hook-form'
 import { format } from 'date-fns'
 import { createRecurringSchema, type CreateRecurringInput } from '@spendio/shared'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
@@ -81,11 +83,17 @@ export function RecurringFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{item ? 'Edit Recurring Transaction' : 'New Recurring Transaction'}</DialogTitle>
+      <DialogContent className="gap-0 p-0 sm:max-w-xl">
+        <DialogHeader className="border-b border-border px-5 py-4 pr-12 text-left sm:px-6">
+          <DialogTitle className="text-lg font-semibold">
+            {item ? 'Edit recurring' : 'New recurring'}
+          </DialogTitle>
+          <DialogDescription>
+            Set the amount, account, and schedule for this rule.
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit(values => onSubmit(values))} className="space-y-4 pt-2">
+
+        <form onSubmit={handleSubmit(values => onSubmit(values))} className="space-y-5 px-5 py-5 sm:px-6">
           <Controller
             control={control}
             name="type"
@@ -97,44 +105,52 @@ export function RecurringFormDialog({
                   setValue('categoryId', null)
                 }}
               >
-                <TabsList className="w-full">
-                  <TabsTrigger value="expense" className="flex-1">Expense</TabsTrigger>
-                  <TabsTrigger value="income" className="flex-1">Income</TabsTrigger>
+                <TabsList className="h-10 w-full rounded-xl p-1">
+                  <TabsTrigger value="expense" className="h-full flex-1">Expense</TabsTrigger>
+                  <TabsTrigger value="income" className="h-full flex-1">Income</TabsTrigger>
                 </TabsList>
               </Tabs>
             )}
           />
 
           <div className="space-y-2">
-            <Label htmlFor="recurring-amount">Amount (Rp)</Label>
-            <Controller
-              control={control}
-              name="amount"
-              render={({ field }) => (
-                <MoneyInput
-                  id="recurring-amount"
-                  placeholder="0"
-                  value={field.value}
-                  onValueChange={field.onChange}
-                  onBlur={field.onBlur}
-                  name={field.name}
-                  aria-invalid={Boolean(errors.amount)}
-                />
-              )}
-            />
+            <Label htmlFor="recurring-amount" className="text-sm font-medium">Amount</Label>
+            <div className="relative">
+              <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm font-medium text-muted-foreground">
+                Rp
+              </span>
+              <Controller
+                control={control}
+                name="amount"
+                render={({ field }) => (
+                  <MoneyInput
+                    id="recurring-amount"
+                    className="h-11 pl-9 text-lg font-semibold tabular-nums"
+                    placeholder="0"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    aria-invalid={Boolean(errors.amount)}
+                  />
+                )}
+              />
+            </div>
             <FieldError error={errors.amount} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Account</Label>
+              <Label htmlFor="recurring-account" className="text-sm font-medium">Account</Label>
               <Controller
                 control={control}
                 name="accountId"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger aria-invalid={Boolean(errors.accountId)}><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
+                    <SelectTrigger id="recurring-account" className="h-9 w-full" aria-invalid={Boolean(errors.accountId)}>
+                      <SelectValue placeholder="Select account" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" sideOffset={4}>
                       {accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -142,8 +158,9 @@ export function RecurringFormDialog({
               />
               <FieldError error={errors.accountId} />
             </div>
+
             <div className="space-y-2">
-              <Label>Category</Label>
+              <Label htmlFor="recurring-category" className="text-sm font-medium">Category</Label>
               <Controller
                 control={control}
                 name="categoryId"
@@ -152,8 +169,10 @@ export function RecurringFormDialog({
                     value={field.value ?? 'none'}
                     onValueChange={value => field.onChange(value === 'none' ? null : value)}
                   >
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
+                    <SelectTrigger id="recurring-category" className="h-9 w-full">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" sideOffset={4}>
                       <SelectItem value="none">No category</SelectItem>
                       {filteredCategories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                     </SelectContent>
@@ -164,13 +183,16 @@ export function RecurringFormDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="recurring-description">Description</Label>
+            <Label htmlFor="recurring-description" className="text-sm font-medium">
+              Description <span className="font-normal text-muted-foreground">(optional)</span>
+            </Label>
             <Controller
               control={control}
               name="description"
               render={({ field }) => (
                 <Input
                   id="recurring-description"
+                  className="h-9"
                   placeholder="e.g. Monthly salary"
                   value={field.value ?? ''}
                   onChange={event => field.onChange(event.target.value || null)}
@@ -181,16 +203,16 @@ export function RecurringFormDialog({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Frequency</Label>
+              <Label htmlFor="recurring-frequency" className="text-sm font-medium">Frequency</Label>
               <Controller
                 control={control}
                 name="frequency"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
+                    <SelectTrigger id="recurring-frequency" className="h-9 w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent position="popper" sideOffset={4}>
                       <SelectItem value="weekly">Weekly</SelectItem>
                       <SelectItem value="monthly">Monthly</SelectItem>
                       <SelectItem value="yearly">Yearly</SelectItem>
@@ -200,10 +222,11 @@ export function RecurringFormDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="recurring-next-date">Next Date</Label>
+              <Label htmlFor="recurring-next-date" className="text-sm font-medium">Next date</Label>
               <Input
                 id="recurring-next-date"
                 type="date"
+                className="h-9"
                 aria-invalid={Boolean(errors.nextDate)}
                 {...register('nextDate')}
               />
@@ -212,10 +235,13 @@ export function RecurringFormDialog({
           </div>
 
           <ErrorNotice error={error} className="text-xs" />
-          <DialogFooter className="gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? 'Saving...' : 'Save'}
+
+          <DialogFooter className="-mx-5 -mb-5 mt-1 flex-row justify-end gap-2 rounded-b-2xl border-t bg-muted/30 px-5 py-4 sm:-mx-6 sm:px-6">
+            <Button type="button" variant="outline" className="h-9" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" className="h-9" disabled={isPending}>
+              {isPending ? 'Saving...' : item ? 'Save changes' : 'Create recurring'}
             </Button>
           </DialogFooter>
         </form>

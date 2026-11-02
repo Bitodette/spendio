@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
+import { CreditCard, Plus, TrendingDown, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TransactionsSkeleton } from '@/components/transactions/TransactionsSkeleton'
 import { TransactionFiltersBar } from '@/components/transactions/TransactionFiltersBar'
@@ -12,18 +12,59 @@ import { TransactionDetailDialog } from '@/components/transactions/TransactionDe
 import { useAuth } from '@/lib/auth'
 import {
   EMPTY_FILTERS, deleteTransaction, fetchAccountOptions, fetchCategories, fetchTransactionPage,
-  type Transaction, type TransactionFilters,
+  type DateRange, type Transaction, type TransactionFilters,
 } from '@/lib/api/transactions'
 import { queryKeys } from '@/lib/query-keys'
 import { invalidateTransactionQueries } from '@/lib/query-invalidation'
 import { ErrorNotice } from '@/components/ui/error-notice'
 import { cn, formatCurrency } from '@/lib/utils'
 
+const RANGE_LABELS: Record<DateRange, string> = {
+  today: 'Today',
+  week: 'Last 7 days',
+  month: 'This month',
+  all: 'All time',
+}
+
 export default function TransactionsPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [filters, setFilters] = useState<TransactionFilters>(EMPTY_FILTERS)
+  const [searchInput, setSearchInput] = useState('')
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => {
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+  }, [])
+
+  const handleSearchChange = (value: string, immediate = false) => {
+    setSearchInput(value)
+
+    if (searchTimer.current) {
+      clearTimeout(searchTimer.current)
+      searchTimer.current = null
+    }
+
+    if (immediate || value === '') {
+      setFilters(previous => ({ ...previous, search: value }))
+      return
+    }
+
+    searchTimer.current = setTimeout(() => {
+      setFilters(previous => ({ ...previous, search: value }))
+      searchTimer.current = null
+    }, 300)
+  }
+
+  const clearFilters = () => {
+    if (searchTimer.current) {
+      clearTimeout(searchTimer.current)
+      searchTimer.current = null
+    }
+    setSearchInput('')
+    setFilters(EMPTY_FILTERS)
+  }
 
   // `undefined` closes the editor; `null` starts a new transaction.
   const [editing, setEditing] = useState<Transaction | null | undefined>(undefined)
@@ -69,7 +110,6 @@ export default function TransactionsPage() {
   const openEdit = (tx: Transaction) => { setDetail(null); setEditing(tx) }
 
   const remove = (tx: Transaction) => {
-    if (!confirm('Delete this transaction?')) return
     deleteMutation.reset()
     deleteMutation.mutate(tx.id)
   }
@@ -91,16 +131,19 @@ export default function TransactionsPage() {
   const net = summary?.net ?? 0
   const queryError = transactionsQuery.isFetchNextPageError ? null : transactionsQuery.error
   const canLoadMore = transactionsQuery.hasNextPage && !transactionsQuery.isPlaceholderData
+  const hasActiveFilters = Boolean(
+    searchInput || filters.accountId || filters.categoryId || filters.range !== 'month',
+  )
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">Transaction</h1>
-          <p className="text-sm text-muted-foreground">Manage income and expenses</p>
+          <h1 className="font-heading text-3xl font-bold text-foreground">Transactions</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Review and manage your income and expenses</p>
         </div>
-        <Button onClick={openAdd} className="gap-2" disabled={optionsUnavailable}>
-          <Plus className="h-4 w-4" /> Add Transaction
+        <Button onClick={openAdd} className="h-10 gap-2" disabled={optionsUnavailable}>
+          <Plus className="h-4 w-4" /> Add transaction
         </Button>
       </div>
 
@@ -114,27 +157,51 @@ export default function TransactionsPage() {
         />
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden">
-        <div className="bg-card p-3 sm:p-4">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Income</p>
-          <p className="font-heading text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">{formatCurrency(totalIncome)}</p>
+      <section>
+        <div className="mb-2 flex items-end justify-between gap-3">
+          <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Summary</h2>
+          <p className="text-xs text-muted-foreground">{RANGE_LABELS[filters.range]}</p>
         </div>
-        <div className="bg-card p-3 sm:p-4">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Expense</p>
-          <p className="font-heading text-base sm:text-lg font-bold text-red-600 dark:text-red-400 mt-1 tabular-nums">{formatCurrency(totalExpense)}</p>
+        <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-3">
+          <div className="bg-card p-3 sm:p-5">
+            <div className="mb-2 flex items-center gap-2">
+              <TrendingUp className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Income</p>
+            </div>
+            <p className="font-heading text-xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400 sm:text-2xl">
+              {formatCurrency(totalIncome)}
+            </p>
+          </div>
+          <div className="bg-card p-3 sm:p-5">
+            <div className="mb-2 flex items-center gap-2">
+              <TrendingDown className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Expense</p>
+            </div>
+            <p className="font-heading text-xl font-bold tabular-nums text-red-600 dark:text-red-400 sm:text-2xl">
+              {formatCurrency(totalExpense)}
+            </p>
+          </div>
+          <div className="bg-card p-3 sm:p-5">
+            <div className="mb-2 flex items-center gap-2">
+              <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Net</p>
+            </div>
+            <p className={cn(
+              'font-heading text-xl font-bold tabular-nums sm:text-2xl',
+              net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+            )}>
+              {net >= 0 ? '+' : ''}{formatCurrency(net)}
+            </p>
+          </div>
         </div>
-        <div className="bg-card p-3 sm:p-4">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Net</p>
-          <p className={cn('font-heading text-base sm:text-lg font-bold mt-1 tabular-nums', net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
-            {formatCurrency(net)}
-          </p>
-        </div>
-      </div>
+      </section>
 
       <TransactionFiltersBar
         filters={filters}
-        onChange={patch => setFilters(p => ({ ...p, ...patch }))}
-        onToggleAdvanced={() => setShowAdvanced(v => !v)}
+        searchValue={searchInput}
+        onSearchChange={handleSearchChange}
+        onChange={patch => setFilters(previous => ({ ...previous, ...patch }))}
+        onToggleAdvanced={() => setShowAdvanced(value => !value)}
         advancedOpen={showAdvanced}
         accounts={accounts}
         categories={categories}
@@ -144,14 +211,14 @@ export default function TransactionsPage() {
         <ErrorNotice error={deleteMutation.error} />
       )}
 
-      <div className="rounded-xl border border-border bg-card">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         <TransactionList
           transactions={transactions}
           onAdd={openAdd}
           onInspect={openDetail}
-          onEdit={openEdit}
-          onDelete={remove}
           addDisabled={optionsUnavailable}
+          hasFilters={hasActiveFilters}
+          onClearFilters={clearFilters}
         />
         {transactionsQuery.isFetchNextPageError ? (
           <div className="border-t border-border p-4">
@@ -168,7 +235,7 @@ export default function TransactionsPage() {
               onClick={() => { void transactionsQuery.fetchNextPage() }}
               disabled={transactionsQuery.isFetchingNextPage}
             >
-              {transactionsQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+              {transactionsQuery.isFetchingNextPage ? 'Loading...' : 'Load older transactions'}
             </Button>
           </div>
         ) : null}
